@@ -46,9 +46,6 @@ int button2State = 0;
 int lastButton2State = 0;
 int button3State = 0;
 int lastButton3State = 0;
-int menuIndex = 0;
-int selectedMenu = 0;
-bool isMenuSelected = false;
 const int ITEMS_SIZE = 3;
 
 struct menuPos {
@@ -81,46 +78,86 @@ menuPos *menuPositions[ITEMS_SIZE] = {
   &menu3
 };
 
+struct menuState {
+  int menuIndex;
+  int selectedMenuIndex;
+  int isMenuSelected;
+  int menuSize;
+  menuPos **menu;
+};
+
+void wrapIndex(menuState *state);
+void onUpClick(menuState *state);
+void onDownClick(menuState *state);
+void onMainClick(menuState *state);
+std::string getDataByState(menuState *state);
+
+struct menuState menu = {
+  0, 0, false, ITEMS_SIZE, &menuPositions[0]
+};
+
+void onUpClick(menuState *state) {
+  state->menuIndex++;
+  wrapIndex(state);
+}
+
+void onDownClick(menuState *state) {
+  state->menuIndex--;
+  wrapIndex(state);
+}
+
+void wrapIndex(menuState *state) {
+  int size;
+  if(state->isMenuSelected) {
+    size = state->menu[state->selectedMenuIndex]->dataSize;
+  } else {
+    size = state->menuSize;
+  }
+  if(state->menuIndex < 0 ){
+    state->menuIndex = size - 1;
+  }
+  state->menuIndex %= size;
+}
+
+void onMainClick(menuState *state) {
+    state->isMenuSelected = !state->isMenuSelected;
+    if(state->isMenuSelected) {
+      state->selectedMenuIndex = state->menuIndex;
+      state->menuIndex = 0;
+    } else {
+      state->selectedMenuIndex = state->menuIndex;
+    }
+}
+
+std::string getDataByState(menuState *state){
+  if(state->isMenuSelected) {
+    return state->menu[state->selectedMenuIndex]->dataPt[state->menuIndex];
+  } else {
+    return (state->menu)[state->menuIndex]->name;
+  }
+}
+
 void loop() {
   button1State = digitalRead(34);
   button2State = digitalRead(35);
   button3State = digitalRead(32);
 
   if(button1State == HIGH && lastButton1State != HIGH) {
-    menuIndex++;
+    onUpClick(&menu);
   }
   lastButton1State = button1State;
 
   if(button2State == HIGH && lastButton2State != HIGH) {
-    menuIndex--;
+    onDownClick(&menu);
   }
   lastButton2State = button2State;
 
-  wrapIndex();
   if(button3State == HIGH && lastButton3State != HIGH) {
-    isMenuSelected = !isMenuSelected;
-    selectedMenu = menuIndex;
-    menuIndex = 0;
+    onMainClick(&menu);
   }
   lastButton3State = button3State;
 
-  if(isMenuSelected) {
-    mainCharactersitic->setValue(menuPositions[selectedMenu]->dataPt[menuIndex]);
-  } else {
-    mainCharactersitic->setValue(menuPositions[menuIndex]->name);
-  }
-  delay(100);
-}
+  mainCharactersitic->setValue(getDataByState(&menu));
 
-void wrapIndex() {
-  int size;
-  if(isMenuSelected) {
-    size = menuPositions[selectedMenu]->dataSize;
-  } else {
-    size = ITEMS_SIZE;
-  }
-  if(menuIndex < 0 ){
-    menuIndex = size - 1;
-  }
-  menuIndex %= size;
+  delay(100);
 }
